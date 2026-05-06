@@ -34,6 +34,7 @@ sudo apt install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
 - Raspberry Pi 5 with SD card
 - USB serial adapter (for viewing output) - see [Serial Connection Setup](#serial-connection-setup) section
+- SD card reader/writer
 
 ## Building
 
@@ -59,10 +60,94 @@ Both commands generate `kernel8.img`.
 
 ## Installation
 
-1. Download Raspberry Pi OS or the bootloader files
-2. Copy the official bootloader files to your SD card
-3. Replace or add `kernel8.img` to the root of the boot partition
-4. Insert SD card into Raspberry Pi 5
+### Step 1: Prepare Your SD Card
+
+1. **Insert SD card** into your computer
+2. **Identify the SD card device**:
+   ```bash
+   # macOS
+   diskutil list
+   
+   # Linux
+   lsblk
+   ```
+   Look for your SD card (usually `/dev/disk4` on macOS or `/dev/sdb` on Linux)
+
+3. **Unmount the SD card** (replace `disk4` with your actual disk):
+   ```bash
+   # macOS
+   diskutil unmountDisk /dev/disk4
+   
+   # Linux
+   sudo umount /dev/sdb*
+   ```
+
+### Step 2: Get Raspberry Pi 5 Bootloader Files
+
+You have two options:
+
+#### Option A: Use Official Raspberry Pi OS (Easiest)
+
+1. Download [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
+2. Install Raspberry Pi OS Lite to your SD card using the imager
+3. This automatically includes all required bootloader files
+4. The boot partition will be ready for your `kernel8.img`
+
+#### Option B: Download Bootloader Files Directly
+
+1. Visit the [Raspberry Pi Firmware Repository](https://github.com/raspberrypi/firmware/tree/master/boot)
+2. Download the latest bootloader files:
+   - `bootcode.bin`
+   - `start.elf` (or `start4.elf` for Pi 5)
+   - `fixup.dat` (or `fixup4.dat` for Pi 5)
+   - `config.txt` (optional, but recommended)
+
+3. **Format SD card as FAT32**:
+   ```bash
+   # macOS
+   diskutil secureErase freespace 0 /dev/disk4 MSDOS BOOT
+   
+   # Linux
+   sudo mkfs.vfat -F 32 /dev/sdb1
+   ```
+
+4. **Mount the SD card** and copy bootloader files to the root
+
+### Step 3: Add Your Custom Kernel
+
+1. **Build the kernel** (from the root of this repository):
+   ```bash
+   # macOS
+   make CROSS_COMPILE=aarch64-elf-
+   
+   # Linux
+   make
+   ```
+
+2. **Copy `kernel8.img` to SD card boot partition**:
+   ```bash
+   # macOS (after mounting)
+   cp kernel8.img /Volumes/BOOT/kernel8.img
+   
+   # Linux
+   sudo cp kernel8.img /mnt/sdcard/kernel8.img
+   ```
+
+3. **Safely eject the SD card**:
+   ```bash
+   # macOS
+   diskutil eject /dev/disk4
+   
+   # Linux
+   sudo umount /mnt/sdcard
+   ```
+
+### Step 4: Boot Your Raspberry Pi
+
+1. Insert the SD card into your Raspberry Pi 5
+2. Connect the serial adapter (see [Serial Connection Setup](#serial-connection-setup))
+3. Power on the Raspberry Pi 5
+4. Open a serial terminal and you should see: `Hello, World!`
 
 ## Serial Connection Setup
 
@@ -171,3 +256,21 @@ picocom -b 115200 /dev/ttyUSB0
 - `kernel.c` - Main kernel with UART initialization
 - `kernel.ld` - Linker script for memory layout
 - `Makefile` - Build automation
+
+## Troubleshooting
+
+### No output on serial terminal
+- Check USB serial adapter is detected: `ls /dev/tty.usbserial-*`
+- Verify wiring connections (GND, TX, RX)
+- Try a different USB port or adapter
+- Ensure SD card has valid bootloader files
+
+### Build fails
+- Verify cross-compiler is installed: `aarch64-elf-gcc --version`
+- Check you're in the repository root directory
+- Try `make clean` then `make` again
+
+### SD card not recognized
+- Try formatting with [SD Card Formatter](https://www.sdcard.org/downloads/formatter/)
+- Use a different SD card reader
+- Ensure SD card is not write-protected
