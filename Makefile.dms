@@ -1,0 +1,34 @@
+CROSS_COMPILE=aarch64-linux-gnu-
+CC=$(CROSS_COMPILE)gcc
+AS=$(CROSS_COMPILE)as
+LD=$(CROSS_COMPILE)ld
+OBJCOPY=$(CROSS_COMPILE)objcopy
+
+CFLAGS=-mcpu=cortex-a76 -fpic -ffreestanding -std=gnu99 -Wall -Wextra
+ASFLAGS=-mcpu=cortex-a76
+
+SOURCES=kernel.c
+OBJECTS=$(SOURCES:.c=.o)
+ASMOBJECTS=boot.o
+
+TARGET=kernel8.elf
+IMAGE=kernel8.img
+
+all: $(IMAGE)
+
+$(IMAGE): $(TARGET)
+	$(OBJCOPY) $(TARGET) -O binary $@
+
+$(TARGET): $(ASMOBJECTS) $(OBJECTS)
+	$(LD) -T kernel.ld -o $@ $(ASMOBJECTS) $(OBJECTS)
+
+boot.o: boot.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f *.o *.elf *.img
+
+.PHONY: all clean
